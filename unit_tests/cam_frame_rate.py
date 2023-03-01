@@ -7,7 +7,7 @@ from adafruit_servokit import ServoKit
 from gpiozero import PhaseEnableMotor
 import cv2 as cv
 
-from time import time
+from time import time, sleep
 
 
 # SETUP
@@ -29,11 +29,13 @@ js = joystick.Joystick(0)
 cv.startWindowThread()
 cam = cv.VideoCapture(0)
 cam.set(cv.CAP_PROP_FPS, 20)
+for _ in reversed(range(60)):
+    ret, frame = cam.read()
 # init timer
 start_stamp = time()
 frame_counts = 0
 ave_frame_rate = 0.
-
+Record_data = -1
 
 # MAIN
 try:
@@ -46,27 +48,51 @@ try:
             cv.destroyAllWindows()
             pygame.quit()
             sys.exit()
-        for e in event.get():
-            if e.type == QUIT:
-                print("QUIT detected, terminating...")
-                engine.stop()
-                engine.close()
-                cv.destroyAllWindows()
-                pygame.quit()
-                sys.exit()
-            if e.type == JOYAXISMOTION:
-                ax0_val = js.get_axis(0)
-                ax4_val = js.get_axis(4)
-                vel = -np.clip(ax4_val, -MAX_THROTTLE, MAX_THROTTLE)
-                if vel > 0:  # drive motor
-                    engine.forward(vel)
-                elif vel < 0:
-                    engine.backward(-vel)
-                else:
-                    engine.stop()
-                ang = STEER_CENTER + MAX_STEER * ax0_val
-                steer.angle = ang  # drive servo
-                action = (ax0_val, ax4_val)  # steer, throttle
+        # ENENT PUMP TEST
+        pygame.event.pump()
+        ax4_val = round((pygame.joystick.Joystick(0).get_axis(4)), 2)
+        ax0_val = round((pygame.joystick.Joystick(0).get_axis(0)), 2)
+        vel = -np.clip(ax4_val, -MAX_THROTTLE, MAX_THROTTLE)
+        if vel > 0:  # drive motor
+            engine.forward(vel)
+        elif vel < 0:
+            engine.backward(-vel)
+        else:
+            engine.stop()
+        ang = STEER_CENTER + MAX_STEER * ax0_val
+        steer.angle = ang  # drive servo
+        if pygame.joystick.Joystick(0).get_button(0) == 1:
+            Record_data = Record_data * -1
+            if Record_data == 1:
+                print("Recording Data")
+                # led.on()
+            else:
+                print("Stopping Data Logging")
+                # led.off()
+            sleep(0.1)
+
+        # WITHOUT EVENT PUMP
+        # for e in event.get():
+        #     if e.type == QUIT:
+        #         print("QUIT detected, terminating...")
+        #         engine.stop()
+        #         engine.close()
+        #         cv.destroyAllWindows()
+        #         pygame.quit()
+        #         sys.exit()
+        #     if e.type == JOYAXISMOTION:
+        #         ax0_val = js.get_axis(0)
+        #         ax4_val = js.get_axis(4)
+        #         vel = -np.clip(ax4_val, -MAX_THROTTLE, MAX_THROTTLE)
+        #         if vel > 0:  # drive motor
+        #             engine.forward(vel)
+        #         elif vel < 0:
+        #             engine.backward(-vel)
+        #         else:
+        #             engine.stop()
+        #         ang = STEER_CENTER + MAX_STEER * ax0_val
+        #         steer.angle = ang  # drive servo
+        #         action = (ax0_val, ax4_val)  # steer, throttle
                 # print(f"throttle axis: {ax4_val}, steering axis: {ax0_val}\nengine speed: {vel}, steering angle: {ang}")
         frame_counts += 1
         duration_since_start = time() - start_stamp
